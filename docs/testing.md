@@ -9,11 +9,13 @@ service has no application source, and the frontend returns a fixed demo reply.
 - Docker Engine running with the Docker Compose plugin.
 - GNU Make.
 - Node.js 26 and npm for the frontend tests.
-- Available host ports: `8080` for nginx and `5601` for Kibana by default.
+- Available host ports: `8080` for nginx, `5601` for Kibana, and `5050` for pgAdmin by default.
 
 Run all commands from the repository root. Service definitions are in
 [docker-compose.yml](../docker/docker-compose.yml); shortcuts are in the
 [Makefile](../Makefile).
+For service addresses, proxy routes, and environment defaults, see
+[Docker services and default endpoints](docker.md).
 
 ## 1. Configure the environment
 
@@ -23,7 +25,9 @@ Create the environment file without overwriting an existing file:
 make setup
 ```
 
-Set a unique `POSTGRES_PASSWORD` in [docker/.env](../docker/.env).
+Set unique `POSTGRES_PASSWORD` and `PGADMIN_DEFAULT_PASSWORD` values in
+[docker/.env](../docker/.env). Existing environment files need the new pgAdmin
+password added manually; `make setup` does not overwrite them.
 If the file already exists but is empty, populate it using the settings in
 [.env.example](../docker/.env.example).
 
@@ -49,8 +53,8 @@ such as `make frontend` still start only that service, without its dependencies.
 
 Expected:
 
-- All seven services remain running, not restarting or exited.
-- PostgreSQL, Elasticsearch, and Ollama eventually report `healthy`.
+- All eight services remain running, not restarting or exited.
+- PostgreSQL, pgAdmin, Elasticsearch, and Ollama eventually report `healthy`.
 - Kibana may need additional startup time after Elasticsearch becomes healthy.
 
 Do not use `make up` yet: it includes RAG, whose missing entrypoint prevents it
@@ -64,6 +68,7 @@ from running.
 | Demo conversation | Send a message on the chat page | User message and a clearly labeled fixed demo reply appear |
 | Chat scrolling | Send enough messages to fill the screen, then scroll through history | Only the conversation scrolls; the page stays viewport-height and the header and composer remain visible |
 | Kibana | <http://localhost:5601> | Kibana loads after initialization |
+| pgAdmin | <http://localhost:5050> | Login page loads; use configured pgAdmin credentials |
 | Django through nginx | <http://localhost:8080/api/> | HTTP 200 with the JSON below |
 
 ```bash
@@ -76,7 +81,7 @@ Expected: `API through nginx: OK`. This verifies HTTP 200 and the exact response
 {"message":"Hello world!","service":"backend"}
 ```
 
-Use the configured ports instead if you changed `HTTP_PORT` or `KIBANA_PORT`.
+Use the configured ports instead if you changed `HTTP_PORT`, `KIBANA_PORT`, or `PGADMIN_PORT`.
 Backend port `8000` and frontend port `3000` are internal container ports, not
 published host ports.
 
@@ -115,7 +120,7 @@ make check
 ```
 
 This checks the frontend and API through nginx, the Django database connection,
-Elasticsearch cluster health, Kibana availability, and Ollama. A failed check
+pgAdmin availability, Elasticsearch cluster health, Kibana availability, and Ollama. A failed check
 returns a nonzero exit status. Kibana can take longer to initialize; inspect its
 logs and rerun `make check-kibana` when ready.
 
@@ -149,6 +154,16 @@ make check-elasticsearch
 
 Expected: cluster status is `green` or `yellow`, not `red`. A single-node
 development cluster can be yellow because replicas cannot be assigned.
+
+### pgAdmin
+
+```bash
+make check-pgadmin
+```
+
+Expected: `pgAdmin: OK`. For database registration and login instructions, see
+[Connect pgAdmin to PostgreSQL](docker.md#connect-pgadmin-to-postgresql).
+This availability check does not verify a saved database connection.
 
 ### Ollama
 
@@ -193,8 +208,8 @@ this does not stop the container.
 
 | Symptom | Next check |
 |---------|------------|
-| Missing password or interpolation error | Populate `POSTGRES_PASSWORD` in the environment file, then run `make config` |
-| Port already allocated | Change `HTTP_PORT` or `KIBANA_PORT`, then rerun the corresponding service target |
+| Missing password or interpolation error | Populate `POSTGRES_PASSWORD` and `PGADMIN_DEFAULT_PASSWORD` in the environment file, then run `make config` |
+| Port already allocated | Change `HTTP_PORT`, `KIBANA_PORT`, or `PGADMIN_PORT`, then rerun the corresponding service target |
 | nginx returns 502 for `/` | Check `make logs SERVICE=frontend` and verify the frontend is running |
 | nginx returns 502 for `/api/` | Check `make logs SERVICE=backend` and verify Django started |
 | Elasticsearch is unhealthy | Inspect `make logs SERVICE=elasticsearch` for resource or host-setting requirements |
