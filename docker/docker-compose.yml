@@ -1,15 +1,18 @@
 # Local-development draft, not a production deployment.
+# Image versions checked against published releases on 2026-11-13; no prereleases.
 # Setup: copy .env.example to .env and change POSTGRES_PASSWORD.
 # Run from this directory: docker compose up --build -d
-# Frontend runs a standalone demo chat. Backend and RAG still need app.py
-# entrypoints and dependency installation in their Dockerfiles.
+# Or from the repository root: make help (individual services skip dependencies).
+# Frontend runs a standalone demo chat. Django backend serves GET /api/.
+# RAG still needs an app.py entrypoint and dependency installation.
+# Backend tests: docker compose run --rm --no-deps backend python manage.py test
 # Frontend-only development: cd ../srcs/frontend && npm ci && npm run dev
 # Application ports and environment variable names below are proposed contracts.
 # Frontend/backend/RAG must listen on 0.0.0.0 at their respective container ports.
 
 services:
   nginx:
-    image: nginx:1.28-alpine
+    image: nginx:1.31.8-alpine
     restart: unless-stopped
     ports:
       - "127.0.0.1:${HTTP_PORT:-8080}:80"
@@ -24,14 +27,15 @@ services:
         condition: service_started
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18.7-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-rag42}
       POSTGRES_USER: ${POSTGRES_USER:-rag42}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in docker/.env}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # PostgreSQL 18+ uses this parent directory. Existing 17 data needs migration.
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
@@ -40,7 +44,7 @@ services:
       start_period: 10s
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.19.0}
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-9.5.6}
     restart: unless-stopped
     environment:
       discovery.type: single-node
@@ -59,7 +63,7 @@ services:
       start_period: 30s
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.19.0}
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-9.5.6}
     restart: unless-stopped
     ports:
       - "127.0.0.1:${KIBANA_PORT:-5601}:5601"
@@ -70,8 +74,7 @@ services:
         condition: service_healthy
 
   ollama:
-    # Override OLLAMA_VERSION with a tested tag for reproducible deployments.
-    image: ollama/ollama:${OLLAMA_VERSION:-latest}
+    image: ollama/ollama:${OLLAMA_VERSION:-0.40.16}
     restart: unless-stopped
     volumes:
       - ollama_data:/root/.ollama
