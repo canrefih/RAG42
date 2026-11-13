@@ -19,7 +19,7 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const conversationRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const input = inputRef.current;
@@ -30,7 +30,8 @@ export default function App() {
   }, [draft]);
 
   useLayoutEffect(() => {
-    if (messages.length) endRef.current?.scrollIntoView({ block: "nearest" });
+    const conversation = conversationRef.current;
+    if (conversation) conversation.scrollTop = conversation.scrollHeight;
   }, [messages]);
 
   function newChat() {
@@ -76,7 +77,7 @@ export default function App() {
           <button className="mobile-new-chat" type="button" aria-label="New conversation" onClick={newChat}>+</button>
           <span className="status"><span className="status-dot" /> Demo mode</span>
         </header>
-        <div className="conversation">
+        <div className="conversation" ref={conversationRef}>
           {messages.length === 0 && (
             <section className="welcome" aria-labelledby="welcome-title">
               <div className="welcome-icon" aria-hidden="true">42<span>✦</span></div>
@@ -104,7 +105,6 @@ export default function App() {
               </article>
             ))}
           </section>
-          <div ref={endRef} />
         </div>
         <div className="composer-area">
           <p className="demo-notice">Preview only · Messages stay in this page. No RAG or LLM is connected yet.</p>
