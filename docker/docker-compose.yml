@@ -34,7 +34,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-rag42}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in docker/.env}
     volumes:
-      # PostgreSQL 18+ uses this parent directory. Existing 17 data needs migration.
       - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
