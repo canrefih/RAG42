@@ -43,7 +43,6 @@ flowchart LR
     pgadmin -->|"Manually registered database server"| postgres
     gateway -->|"/ and static assets"| frontend
     gateway -->|"/api/ prefix preserved"| backend
-    gateway -.->|"/rag/ reserved route"| rag
     backend -->|"Database configured; hello-world does not query it"| postgres
     kibana --> elasticsearch
     backend -.->|"RAG_URL reserved"| rag
@@ -56,7 +55,9 @@ flowchart LR
 
 The browser does not call Docker service addresses directly. nginx forwards
 requests on the shared network. The frontend currently has no API integration,
-and Django does not call RAG or Ollama.
+and Django does not call RAG or Ollama yet. All future chat/retrieval requests
+must pass through the backend, which is responsible for authentication,
+authorization, and validation before calling RAG internally.
 
 ### Current request paths
 
@@ -91,7 +92,6 @@ After configuring the environment and running `make start`:
 | <http://localhost:8080/api/> | Django through nginx | Hello-world JSON |
 | <http://localhost:5601/> | Kibana | Elasticsearch management UI |
 | <http://localhost:5050/> | pgAdmin | PostgreSQL management UI; login required |
-| `http://localhost:8080/rag/` | Reserved proxy route | Not functional: RAG application is not implemented |
 
 These are default ports. `HTTP_PORT`, `KIBANA_PORT`, and `PGADMIN_PORT` in
 [docker/.env](../docker/.env) override the published ports. Both bindings use
@@ -113,7 +113,7 @@ use the service names below for internal connections and Make commands.
 | `ollama` | `ollama/ollama:0.40.16` | `http://ollama:11434` | Not published |
 | `frontend` | [Frontend Dockerfile](../srcs/frontend/Dockerfile) | `http://frontend:3000` | Through nginx |
 | `backend` | [Backend Dockerfile](../srcs/backend/Dockerfile) | `http://backend:8000` | Through nginx at `/api/` |
-| `rag` | [RAG Dockerfile](../srcs/RAG/Dockerfile) | Planned: `http://rag:8000` | Reserved nginx route `/rag/` |
+| `rag` | [RAG Dockerfile](../srcs/RAG/Dockerfile) | Planned: `http://rag:8000` | None; backend access only |
 
 Image defaults are pinned in Compose. Elasticsearch and Kibana share the
 `ELASTIC_VERSION` override; Ollama uses `OLLAMA_VERSION`, and pgAdmin uses
@@ -181,14 +181,15 @@ The gateway mounts [docker/nginx.conf](../docker/nginx.conf) read-only.
 |---------------|----------|-----------------|
 | `/` and paths not matched below | `http://frontend:3000` | Request URI preserved |
 | `/api/` and its subpaths | `http://backend:8000` | `/api/` preserved |
-| `/rag/` and its subpaths | `http://rag:8000` | `/rag/` preserved |
 
 For example, `/api/` reaches Django as `/api/`, not `/`.
 Routing a prefix does not create application endpoints under it.
 
 - Docker DNS is resolved using `127.0.0.11` with a 10-second validity.
 - Host, client IP, forwarded IP chain, and protocol headers are forwarded.
-- `/rag/` has a 300-second upstream read timeout and response buffering disabled.
+- RAG has no public proxy or published host port. Only the backend should call it.
+  The shared development network is not an access-control boundary between
+  containers; production network segmentation is still required.
 - `/api/` has no custom read timeout or streaming configuration.
 - No HTTPS listener, certificates, or gateway authentication are configured.
 
@@ -297,7 +298,7 @@ container. `make restart` alone does not rebuild images.
 
 | Service | Declared startup dependencies | Container health check |
 |---------|-------------------------------|------------------------|
-| nginx | Frontend, backend, and RAG started | None |
+| nginx | Frontend and backend started | None |
 | PostgreSQL | None | `pg_isready` every 10 seconds |
 | pgAdmin | PostgreSQL healthy | HTTP `/misc/ping` every 10 seconds |
 | Elasticsearch | None | Cluster reaches yellow or green; checked every 10 seconds |

@@ -23,8 +23,6 @@ services:
         condition: service_started
       backend:
         condition: service_started
-      rag:
-        condition: service_started
 
   postgres:
     image: postgres:18.7-alpine
@@ -112,7 +110,7 @@ services:
     restart: unless-stopped
     expose:
       - "3000"
-    # Browser requests use /api/ and /rag/ through nginx, not Docker hostnames.
+    # Browser API requests use /api/ through the backend; RAG is internal-only.
 
   backend:
     build:

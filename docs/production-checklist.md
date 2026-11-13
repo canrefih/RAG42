@@ -46,13 +46,13 @@ binding on port `8080`.
 - [ ] Set request-body limits, request/read/send timeouts, connection limits, and
   rate limits appropriate for chat and document uploads.
 - [ ] Align nginx, Gunicorn, application-client, and inference timeouts. `/api/`
-  currently has no custom read timeout; only the reserved `/rag/` route has a
-  300-second timeout and buffering disabled.
+  currently has no custom read timeout or streaming configuration.
 - [ ] If streaming is implemented, test buffering, client disconnects, idle
   timeouts, and worker capacity on the actual chat route.
-- [ ] Remove or restrict the public `/rag/` route unless direct browser access is
-  explicitly required. Prefer authenticated backend orchestration rather than
-  exposing an internal retrieval service.
+- [ ] Preserve the internal-only RAG boundary: RAG has no public proxy route or
+  published host port. Enforce authentication,
+  authorization, and validation in the backend before forwarding requests.
+  Segment networks so frontend/gateway containers cannot directly access RAG.
 - [ ] Apply suitable security headers to API and error responses as well as
   static files. Preserve and test the frontend's existing Content Security
   Policy; do not weaken it just to make an integration work.
