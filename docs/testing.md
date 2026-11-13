@@ -51,6 +51,14 @@ make ps
 waiting up to 180 seconds for container health checks. Individual service targets
 such as `make frontend` still start only that service, without its dependencies.
 
+After successful startup, Make prints clickable browser URLs using the running
+containers' actual published ports, including any environment overrides.
+Individual service targets print the relevant UI or API address. PostgreSQL
+links to pgAdmin and Elasticsearch links to Kibana; those UIs must be started
+separately. Frontend and backend links require nginx. If the required gateway or
+UI is not running, Make reports which service to start instead of inventing a
+URL. Ollama and the unfinished RAG service have no browser GUI in this stack.
+
 Expected:
 
 - All eight services remain running, not restarting or exited.

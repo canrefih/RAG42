@@ -7,6 +7,35 @@ SERVICES := nginx postgres pgadmin elasticsearch kibana ollama frontend backend 
 IMPLEMENTED_SERVICES := $(filter-out rag,$(SERVICES))
 FRONTEND_DIR := $(ROOT_DIR)srcs/frontend
 
+define SHOW_URLS
+@browser_url() { \
+	if address=$$($(COMPOSE) port "$$1" "$$2"); then \
+		printf '%-12s http://%s%s%s\n' "$$3:" "$$address" "$$4" "$$5"; \
+	else \
+		printf '%-12s Not published; start with make %s.\n' "$$3:" "$$1"; \
+	fi; \
+}; \
+case "$(1)" in \
+	start|up) \
+		browser_url nginx 80 'Frontend' /; \
+		browser_url nginx 80 'Backend API' /api/; \
+		browser_url kibana 5601 'Kibana' /; \
+		browser_url pgadmin 80 'pgAdmin' / ;; \
+	nginx|frontend) \
+		browser_url nginx 80 'Frontend' / ' (requires nginx and frontend)' ;; \
+	backend) \
+		browser_url nginx 80 'Backend API' /api/ ' (requires nginx)' ;; \
+	pgadmin|postgres) \
+		browser_url pgadmin 80 'pgAdmin' / ' (requires pgAdmin)' ;; \
+	kibana|elasticsearch) \
+		browser_url kibana 5601 'Kibana' / ' (requires Kibana)' ;; \
+	ollama) \
+		printf 'Ollama has no browser GUI in this stack. Check it with make check-ollama.\n' ;; \
+	rag) \
+		printf 'RAG has no working browser endpoint yet; its application is not implemented.\n' ;; \
+esac
+endef
+
 .PHONY: help setup start up down stop restart logs ps config build pull \
 	frontend-install frontend-dev frontend-build test test-frontend test-backend \
 	check check-frontend check-api check-db check-elasticsearch check-kibana \
@@ -20,7 +49,7 @@ help:
 		'make start           Build/start implemented services; wait for health checks' \
 		'make <service>       Build/start only that service, without dependencies:' \
 		'                     nginx postgres pgadmin elasticsearch kibana ollama frontend backend rag' \
-		'make up              Build/start the entire stack INCLUDING unfinished RAG' \
+		'make up              Build/start the entire stack INCLUDING UNIMPLEMENTED SERVICES' \
 		'make build           Build Docker images (optional: SERVICE=backend)' \
 		'make pull            Pull third-party images (optional: SERVICE=postgres)' \
 		'make stop            Stop containers (optional: SERVICE=frontend)' \
@@ -57,12 +86,15 @@ setup:
 
 $(SERVICES):
 	$(COMPOSE) up --build --detach --no-deps $@
+	$(call SHOW_URLS,$@)
 
 start:
 	$(COMPOSE) up --build --detach --no-deps --wait --wait-timeout 180 $(IMPLEMENTED_SERVICES)
+	$(call SHOW_URLS,$@)
 
 up:
 	$(COMPOSE) up --build --detach
+	$(call SHOW_URLS,$@)
 
 down:
 	$(COMPOSE) down
