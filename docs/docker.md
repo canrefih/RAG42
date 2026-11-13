@@ -4,6 +4,8 @@ Reference for the current development stack in
 [docker-compose.yml](../docker/docker-compose.yml).
 See [Testing the development stack](testing.md) for setup, verification, and
 troubleshooting commands.
+Before deploying outside local development, use the
+[production deployment checklist](production-checklist.md).
 
 ## Architecture at a glance
 
